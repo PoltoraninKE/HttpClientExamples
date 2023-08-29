@@ -3,10 +3,19 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Mime;
 using System.Threading.Tasks;
 
 namespace HttpClientExamples
 {
+
+    public class Config
+    {
+        public string BizaccountAuthenticationToken { get; set; }
+        public string BizaccountHost { get; set; }
+    }
+
     internal class Program
     {
         public static void Main(string[] args)
@@ -14,11 +23,37 @@ namespace HttpClientExamples
             //netstat -n | select-string -pattern "178.248.237.68"
             ConnectionLeaks();
 
+            // Настройки
+            BizaccountHttpClient(new Config
+            {
+                BizaccountAuthenticationToken = "token",
+                BizaccountHost = "host"
+            });
+
             // 2 as default, 5 to show
-            ConnectionLimits();
+            //ConnectionLimits(5);
 
             // DNS cache
-            DnsCache();
+            //DnsCache();
+        }
+
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly MediaTypeWithQualityHeaderValue _contentType = new MediaTypeWithQualityHeaderValue(@"application/json");
+
+        public static void BizaccountHttpClient(Config configuration)
+        {
+            var config = configuration;
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue(config.BizaccountAuthenticationToken);
+            if (!_httpClient.DefaultRequestHeaders.Accept.Contains(_contentType))
+            {
+                _httpClient.DefaultRequestHeaders.Accept.Add(_contentType);
+            }
+
+            if (_httpClient.BaseAddress == null)
+            {
+                _httpClient.BaseAddress = new Uri(config.BizaccountHost);
+            }
         }
 
         public static void ConnectionLeaks()
@@ -40,6 +75,9 @@ namespace HttpClientExamples
             }
 
             Console.ReadKey();
+
+            // Ключ реестра
+            // HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\TcpTimedWaitDelay.
         }
 
 
@@ -62,12 +100,14 @@ namespace HttpClientExamples
 
         public static void DnsCache()
         {
-            // Указывает, сколько времени будет закеширован полученный IP адрес для каждого доменного имени, значение по умолчанию
+            // Указывает, сколько времени будет закеширован полученный IP адрес для каждого доменного имени, значение по умолчанию - 120 секунд
             ServicePointManager.DnsRefreshTimeout = int.MinValue;
             var servicePoint = ServicePointManager.FindServicePoint(new Uri("http://your-Url"));
-            // Сколько времени соединение может удерживаться открытым.
+
+            // Сколько времени соединение может удерживаться открытым. Значение по умолчанию - 60 секунд.
             servicePoint.ConnectionLeaseTimeout = int.MinValue;
-            // После какого времени бездействия соединение будет закрыто.
+
+            // После какого времени бездействия соединение будет закрыто. Значение по умолчанию 10 секунд.
             servicePoint.MaxIdleTime = int.MinValue;
         }
 
